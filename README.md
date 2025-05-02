@@ -1,2 +1,2 @@
-# Containerized-MERN-STACK-TODOAPP
-The mern stack application having frontend and backend, containerzied application using docker compose
+# Containerized-SPRINGBOOT-APPLICATION
+Containerization of Springboot application using dockerfile
