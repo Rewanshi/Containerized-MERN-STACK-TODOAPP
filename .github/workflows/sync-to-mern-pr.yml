@@ -24,12 +24,8 @@ jobs:
       run: |
         git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/${REPO_B}.git /tmp/repo-b
         cd /tmp/repo-b
-        git fetch origin
-        if git show-ref --verify --quiet refs/remotes/origin/$DEST_BRANCH; then
-          git checkout $DEST_BRANCH
-        else
-          git checkout -b $DEST_BRANCH
-        fi
+        git fetch origin  # Ensure all branches are fetched
+        git checkout $DEST_BRANCH || git checkout -b $DEST_BRANCH  # If branch doesn't exist, create it
 
     - name: Sync files from Repo A to Repo B
       run: |
@@ -51,6 +47,7 @@ jobs:
         body: 'This PR syncs changes from Repo A branch `${{ env.SOURCE_BRANCH }}` to Repo B branch `${{ env.DEST_BRANCH }}`.'
         base: ${{ env.DEST_BRANCH }}
         head: ${{ env.DEST_BRANCH }}
+
         
 # name: Sync Repo A to Repo B and Raise PR for merging
 
