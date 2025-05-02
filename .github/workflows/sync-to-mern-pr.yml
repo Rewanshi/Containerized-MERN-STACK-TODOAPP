@@ -1,0 +1,128 @@
+name: Sync Repo A to Repo B and Raise PR
+
+on:
+  push:
+    branches:
+      - new_source
+
+jobs:
+  sync-and-pr:
+    runs-on: ubuntu-latest
+
+    env:
+      REPO_B: Rewanshi/Containerized-MERN-STACK-TODOAPP
+      SOURCE_BRANCH: new_source
+      DEST_BRANCH: new_destination
+
+    steps:
+    - name: Checkout Repo A
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.SOURCE_BRANCH }}
+
+    - name: Clone Repo B outside the workspace
+      run: |
+        git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/${REPO_B}.git /tmp/repo-b
+        cd /tmp/repo-b
+        git checkout -B $DEST_BRANCH || git checkout -b $DEST_BRANCH
+
+    - name: Sync files from Repo A to Repo B
+      run: |
+        rsync -av --exclude='.git' $GITHUB_WORKSPACE/ /tmp/repo-b/
+        cd /tmp/repo-b
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "Sync changes from Repo A ($SOURCE_BRANCH)" || echo "No changes to commit"
+        git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${REPO_B}.git $DEST_BRANCH
+
+    - name: Create Pull Request in Repo B
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GH_PAT }}
+        repository: ${{ env.REPO_B }}
+        title: "Automated PR: Sync from Repo A ($SOURCE_BRANCH)"
+        body: "This PR syncs changes from Repo A branch `$SOURCE_BRANCH` to Repo B branch `$DEST_BRANCH`."
+        base: ${{ env.DEST_BRANCH }}
+        head: ${{ env.DEST_BRANCH }}
+
+
+        
+# name: Build, Push, and Deploy to Azure Container Apps
+
+# on:
+#   push:
+#     branches: 
+#       - main
+#   pull_request:
+#     branches:
+#       - main
+#   workflow_dispatch:
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # Checkout the code from the repository
+#       - name: Checkout Code
+#         uses: actions/checkout@v3
+
+#       # Build the Docker image
+#       - name: Build Docker Image
+#         run: |
+#           docker build -t java-app-new ./Springboot-application-docker
+
+#       # Log in to Azure Container Registry (ACR)
+#       - name: Log in to Azure Container Registry
+#         uses: azure/docker-login@v1
+#         with:
+#           login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+#           username: ${{ secrets.ACR_USERNAME }}
+#           password: ${{ secrets.ACR_PASSWORD }}
+
+#       # Push the Docker image to ACR
+#       - name: Push Docker Image to ACR
+#         run: |
+#           docker tag java-app-new ${{ secrets.ACR_LOGIN_SERVER }}/java-app-new:latest
+#           docker push ${{ secrets.ACR_LOGIN_SERVER }}/java-app-new:latest
+
+#   deploy:
+#     runs-on: ubuntu-latest
+#     needs: build
+
+#     steps:
+#       # Log in to Azure using service principal
+#       - name: Log in to Azure
+#         uses: azure/login@v1
+#         with:
+#           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+#       # Log in to Azure Container Registry
+#       - name: Log in to Azure Container Registry
+#         run: |
+#           az acr login --name ${{ secrets.ACR_USERNAME }}
+
+#       # Update the Container App
+#       - name: Update Azure Container App
+#         run: |
+#           CONTAINERAPP_NAME="java-app-cont"
+#           RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP }}"
+#           REGISTRY_NAME="${{ secrets.ACR_USERNAME }}"
+#           IMAGE_NAME="java-app-new"
+
+#           az containerapp update \
+#             --name $CONTAINERAPP_NAME \
+#             --resource-group $RESOURCE_GROUP \
+#             --image "${REGISTRY_NAME}.azurecr.io/${IMAGE_NAME}:latest" 
+#             # --ingress external \
+#             # --target-port 8080
+
+#       # Check Container App Status
+#       - name: Check Container App FQDN
+#         run: |
+#           echo "Container App FQDN:"
+#           az containerapp show \
+#             --name java-app-cont \
+#             --resource-group ${{ secrets.RESOURCE_GROUP }} \
+#             --query properties.configuration.ingress.fqdn -o tsv
